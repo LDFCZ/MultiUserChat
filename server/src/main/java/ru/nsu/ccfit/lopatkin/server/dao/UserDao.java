@@ -1,35 +1,46 @@
 package ru.nsu.ccfit.lopatkin.server.dao;
 
-import org.hibernate.Session;
-import org.hibernate.Transaction;
-import org.hibernate.query.Query;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
+import com.opencsv.exceptions.CsvException;
+import ru.nsu.ccfit.lopatkin.server.exceptions.FindUserException;
+import ru.nsu.ccfit.lopatkin.server.exceptions.SaveUserException;
 import ru.nsu.ccfit.lopatkin.server.models.User;
-import ru.nsu.ccfit.lopatkin.server.utils.HibernateFactory;
+
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.List;
 
 
 public class UserDao {
-    //new user
 
-    //find by name
+    public static final String USERS_CSV = "src/main/resources/users.csv";
+    public static final int NAME = 0;
+    public static final int PASSWORD = 1;
+    public static final String DATA_BASE_READING_EXCEPTION = "DataBaseReading EXCEPTION!";
 
-    //new user
-    public long save(User user) {
-        long id = -1;
-        try (Session session = HibernateFactory.getSessionFactory().openSession()) {
-            Transaction tx1 = session.beginTransaction();
-            id = (long) session.save(user);
-            tx1.commit();
+    public void save(User user) throws SaveUserException {
+        try (CSVWriter writer = new CSVWriter(new FileWriter(USERS_CSV, true))){
+            String[] record = {user.getName(), user.getPassword()};
+            writer.writeNext(record);
+            writer.flush();
+        } catch (IOException e) {
+            throw new SaveUserException("DaraBaseSaving EXCEPTION!");
         }
-        return id;
     }
 
-    public User findByName(String name) {
-        User user = null;
-        try (Session session = HibernateFactory.getSessionFactory().openSession()) {
-            Query<User> query = session.createQuery("FROM User u where u.name = :name", User.class);
-            query.setParameter("name", name);
-            user = query.getSingleResult();
+    public User findByName(String name) throws FindUserException {
+        try (CSVReader reader = new CSVReader(new FileReader(USERS_CSV))) {
+            List<String[]> r = reader.readAll();
+            for (String[] s : r ) {
+                if (s[NAME].equals(name)) return new User(s[NAME], s[PASSWORD]);
+            }
+        } catch (IOException | CsvException e) {
+            System.out.println(e.getMessage());
+            e.printStackTrace();
+            throw new FindUserException(DATA_BASE_READING_EXCEPTION);
         }
-        return user;
+        return null;
     }
 }
